@@ -1,8 +1,13 @@
 import uvicorn
+from langserve import add_routes
+
 from core.server_settings import server_settings
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
+
+from runnable.openai_runnable import OpenAIRunnable
+from runnable.zhipu_runnable import ZhipuRunnable
 
 
 class Bootstrap:
@@ -21,7 +26,8 @@ class Bootstrap:
         )
 
     def setup_router(self):
-        pass
+        add_routes(self.app, OpenAIRunnable().instance(), path='/openai')
+        add_routes(self.app, ZhipuRunnable().instance(), path='/zhipu')
 
     def start(self):
         self.setup_middlewares()
