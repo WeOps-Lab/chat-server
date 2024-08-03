@@ -15,11 +15,14 @@ openai_key = os.getenv('OPENAI_API_KEY')
 
 def test_openai_chat():
     runnable = OpenAIRunnable()
+    rag_context = """凯瑟喵，Kaisersama，95后唱作人，海外音乐系学生。代表作品有《撒野》《谎》《一分之二》《Midnight》等。 “将幻想塞给他们，将他们带入新的森林。”"""
     req = OpenAIChatRequest(
-        system_message_prompt="",
+        system_message_prompt="你是一个严谨的问答助手，会根据我提供的背景信息进行简洁的问答，不能捏造任何信息",
         openai_api_base=openai_base_url,
+        model="gpt-4o-mini",
         openai_api_key=openai_key,
-        user_message="你好呀",
+        rag_context=rag_context,
+        user_message="介绍一下凯瑟喵",
     )
     result = runnable.openai_chat(req)
     logger.info(result)

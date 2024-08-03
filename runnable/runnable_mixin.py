@@ -25,5 +25,6 @@ class RunnableMixin:
             result = driver.chat(
                 system_prompt=system_skill_prompt,
                 user_message=req.user_message,
+                rag_context=req.rag_context,
             )
             return result

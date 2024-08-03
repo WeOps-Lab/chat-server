@@ -21,10 +21,10 @@ class BaseDriver:
         logger.error(f"聊天出错: {e}")
         return "服务端异常"
 
-    def chat(self, system_prompt, user_message):
+    def chat(self, system_prompt, user_message, rag_context=""):
         try:
             prompt = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
+                ("system", f"{system_prompt}, Here is some context: {rag_context}"),
                 ("human", "{text}"),
             ])
 
