@@ -1,58 +1,60 @@
-from langchain.chains.conversation.base import ConversationChain
-from langchain.chains.llm import LLMChain
-from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.prompts import (
     ChatPromptTemplate,
-    HumanMessagePromptTemplate,
-    PromptTemplate,
-    SystemMessagePromptTemplate,
+    MessagesPlaceholder,
 )
-
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from loguru import logger
 
 
 class BaseDriver:
-    def chat(self, system_message_prompt, user_message):
+    def _log_result(self, user_message, system_prompt, result):
+        logger.info(f"""
+            请求消息: {user_message}
+            系统消息: {system_prompt}
+            响应消息: {result.content}
+            输入令牌: {result.usage_metadata['input_tokens']}
+            输出令牌: {result.usage_metadata['output_tokens']}
+            总令牌: {result.usage_metadata['total_tokens']}
+        """)
+
+    def _handle_exception(self, e):
+        logger.error(f"聊天出错: {e}")
+        return "服务端异常"
+
+    def chat(self, system_prompt, user_message):
         try:
-            system_message_prompt = SystemMessagePromptTemplate.from_template(
-                system_message_prompt
-            )
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", system_prompt),
+                ("human", "{text}"),
+            ])
 
-            human_template = "{text}"
-            human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
-            chat_prompt = ChatPromptTemplate.from_messages(
-                [system_message_prompt, human_message_prompt]
-            )
-            chain = LLMChain(llm=self.client, prompt=chat_prompt)
+            chain = prompt | self.client
+            result = chain.invoke({"text": user_message})
 
-            result = chain.run(user_message)
-            return result
+            self._log_result(user_message, system_prompt, result)
+            return result.content
         except Exception as e:
-            logger.error(f"聊天出错: {e}")
-            return f"服务端异常:{e}"
+            return self._handle_exception(e)
 
-    def chat_with_history(
-            self,
-            system_message_prompt,
-            user_message,
-            message_history,
-            window_size=10,
-            rag_content="",
-    ):
+    def chat_with_history(self, system_prompt, user_message, message_history, rag_content=""):
         try:
-            prompt = PromptTemplate(
-                input_variables=["chat_history", "input"], template=system_message_prompt
-            )
-            memory = ConversationBufferWindowMemory(
-                memory_key="chat_history", chat_memory=message_history, k=window_size
-            )
-            llm_chain = ConversationChain(
-                llm=self.client, prompt=prompt, memory=memory, verbose=True
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", f"{system_prompt}, Here is some context: {rag_content}"),
+                MessagesPlaceholder(variable_name="chat_history"),
+                ("human", "{input}"),
+            ])
+
+            chain = prompt | self.client
+            chain_with_history = RunnableWithMessageHistory(
+                chain,
+                get_session_history=lambda: message_history,
+                input_messages_key="input",
+                history_messages_key="chat_history",
             )
 
-            user_message = f"{rag_content} {user_message}"
-            result = llm_chain.predict(input=user_message)
-            return result
+            result = chain_with_history.invoke({"input": user_message})
+
+            self._log_result(user_message, system_prompt, result)
+            return result.content
         except Exception as e:
-            logger.error(f"聊天出错: {e}")
-            return f"服务端异常:{e}"
+            return self._handle_exception(e)

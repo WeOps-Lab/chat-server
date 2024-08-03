@@ -1,4 +1,4 @@
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 
 from utils.base_driver import BaseDriver
 
@@ -10,4 +10,5 @@ class OpenAIDriver(BaseDriver):
             openai_api_base=openai_base_url,
             temperature=temperature,
             model=model,
+            max_retries=3,
         )
