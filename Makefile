@@ -25,4 +25,4 @@ lint:
 setup-base:
 	git remote add base https://github.com/WeOps-Lab/langserve-base.git
 	git config pull.rebase false
-	git merge origin/main --allow-unrelated-histories
+	git pull base main --allow-unrelated-histories
