@@ -21,9 +21,8 @@ class RunnableMixin:
             )
             return result
         else:
-            system_skill_prompt = req.system_message_prompt.replace("{", "[").replace("}", "]")
             result = driver.chat(
-                system_prompt=system_skill_prompt,
+                system_prompt=req.system_message_prompt,
                 user_message=req.user_message,
                 rag_context=req.rag_context,
             )
