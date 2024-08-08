@@ -7,7 +7,6 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from runnable.openai_runnable import OpenAIRunnable
-from runnable.zhipu_runnable import ZhipuRunnable
 
 
 class Bootstrap:
