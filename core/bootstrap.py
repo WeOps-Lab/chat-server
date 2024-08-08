@@ -26,7 +26,6 @@ class Bootstrap:
 
     def setup_router(self):
         add_routes(self.app, OpenAIRunnable().instance(), path='/openai')
-        add_routes(self.app, ZhipuRunnable().instance(), path='/zhipu')
 
     def start(self):
         self.setup_middlewares()
