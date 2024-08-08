@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic.v1 import BaseSettings
 
 
@@ -5,6 +7,9 @@ class ServerSettings(BaseSettings):
     app_name: str = "langserve-base"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
+
+    openai_api_base: Optional[str] = 'https://api.openai.com'
+    openai_api_key: Optional[str] = None
 
     class Config:
         env_file = ".env"
