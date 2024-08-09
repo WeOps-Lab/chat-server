@@ -25,11 +25,11 @@ class BaseDriver:
         try:
             prompt = ChatPromptTemplate.from_messages([
                 ("system", f"{system_prompt}, Here is some context: {rag_context}"),
-                ("human", "{input}"),
+                ("human", "{text}"),
             ])
 
             chain = prompt | self.client
-            result = chain.invoke({"input": user_message})
+            result = chain.invoke({"text": user_message})
 
             self._log_result(user_message, system_prompt, result)
             return result.content
