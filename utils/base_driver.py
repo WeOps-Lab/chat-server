@@ -1,3 +1,5 @@
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_community.tools import ShellTool, DuckDuckGoSearchRun
 from langchain_core.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
@@ -7,54 +9,88 @@ from loguru import logger
 
 
 class BaseDriver:
-    def _log_result(self, user_message, system_prompt, result):
-        logger.info(f"""
-            请求消息: {user_message}
-            系统消息: {system_prompt}
-            响应消息: {result.content}
-            输入令牌: {result.usage_metadata['input_tokens']}
-            输出令牌: {result.usage_metadata['output_tokens']}
-            总令牌: {result.usage_metadata['total_tokens']}
-        """)
 
-    def _handle_exception(self, e):
-        logger.error(f"聊天出错: {e}")
-        return "服务端异常"
-
-    def chat(self, system_prompt, user_message, rag_context=""):
+    def chat_with_history(self, system_prompt, user_message, message_history, rag_content="", tools=[]):
         try:
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", f"{system_prompt}, Here is some context: {rag_context}"),
-                ("human", "{text}"),
-            ])
+            if tools:
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", """     
+{system_prompt}
+Here is our chat history:
+{chat_history}
+Here is some context: 
+{rag_content}      
+                       
+Answer the following questions as best you can. You have access to the following tools:
+{tools}
+Use the following format:
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tools}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+Begin!
+Question: {input}
+Thought:{agent_scratchpad}
+              
+                    """),
+                    ("human", "{input}"),
+                    ("placeholder", "{agent_scratchpad}"),
+                ])
 
-            chain = prompt | self.client
-            result = chain.invoke({"text": user_message})
+                tool_lists = []
+                if 'shell' in tools:
+                    shell_tool = ShellTool()
+                    tool_lists.append(shell_tool)
+                if 'duckduckgo-search' in tools:
+                    search_tool = DuckDuckGoSearchRun()
+                    tool_lists.append(search_tool)
+                agent = create_tool_calling_agent(self.client, tool_lists, prompt)
+                agent_executor = AgentExecutor(agent=agent, tools=tool_lists, verbose=True)
 
-            self._log_result(user_message, system_prompt, result)
-            return result.content
+                input_data = {
+                    "input": user_message,
+                    "chat_history": message_history.messages,
+                    "rag_content": rag_content,
+                    "tools": [tool.name for tool in tool_lists],
+                    "system_prompt": system_prompt,
+                }
+                formatted_prompt = prompt.format(**input_data)
+                print("Formatted Prompt:\n", formatted_prompt)
+
+                result = agent_executor.invoke(input_data)
+                return result['output']
+
+            else:
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"{system_prompt}, Here is some context: {rag_content}"),
+                    MessagesPlaceholder(variable_name="chat_history"),
+                    ("human", "{input}"),
+                ])
+
+                chain = prompt | self.client
+                chain_with_history = RunnableWithMessageHistory(
+                    chain,
+                    get_session_history=lambda: message_history,
+                    input_messages_key="input",
+                    history_messages_key="chat_history",
+                )
+
+                result = chain_with_history.invoke({"input": user_message})
+
+                logger.info(f"""
+                            请求消息: {user_message}
+                            系统消息: {system_prompt}
+                            响应消息: {result.content}
+                            输入令牌: {result.usage_metadata['input_tokens']}
+                            输出令牌: {result.usage_metadata['output_tokens']}
+                            总令牌: {result.usage_metadata['total_tokens']}
+                        """)
+
+                return result.content
         except Exception as e:
-            return self._handle_exception(e)
-
-    def chat_with_history(self, system_prompt, user_message, message_history, rag_content=""):
-        try:
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", f"{system_prompt}, Here is some context: {rag_content}"),
-                MessagesPlaceholder(variable_name="chat_history"),
-                ("human", "{input}"),
-            ])
-
-            chain = prompt | self.client
-            chain_with_history = RunnableWithMessageHistory(
-                chain,
-                get_session_history=lambda: message_history,
-                input_messages_key="input",
-                history_messages_key="chat_history",
-            )
-
-            result = chain_with_history.invoke({"input": user_message})
-
-            self._log_result(user_message, system_prompt, result)
-            return result.content
-        except Exception as e:
-            return self._handle_exception(e)
+            logger.error(f"聊天出错: {e}")
+            return "服务端异常"

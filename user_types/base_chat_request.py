@@ -12,3 +12,4 @@ class BaseChatRequest(CustomUserType):
     chat_history: List[ChatHistory] = []
     conversation_window_size: Optional[int] = 10
     rag_context: Optional[str] = ''
+    tools: Optional[List[str]] = []

@@ -12,3 +12,4 @@ pyjwt==2.8.0
 langsmith==0.1.93
 langchain-experimental==0.0.63
 langchainhub==0.1.21
+duckduckgo-search==6.2.9
