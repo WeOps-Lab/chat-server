@@ -7,6 +7,8 @@ from langchain_core.prompts import (
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from loguru import logger
 
+from tools.prometheus_tools import PrometheusSearchTool, PrometheusLabelLookupTool
+
 
 class BaseDriver:
 
@@ -43,13 +45,15 @@ Thought:{agent_scratchpad}
 
                 tool_lists = []
                 if 'shell' in tools:
-                    shell_tool = ShellTool()
-                    tool_lists.append(shell_tool)
+                    tool_lists.append(ShellTool())
                 if 'duckduckgo-search' in tools:
-                    search_tool = DuckDuckGoSearchRun()
-                    tool_lists.append(search_tool)
+                    tool_lists.append(DuckDuckGoSearchRun())
+                if 'prometheus-search' in tools:
+                    tool_lists.append(PrometheusLabelLookupTool())
+                    tool_lists.append(PrometheusSearchTool())
+
                 agent = create_tool_calling_agent(self.client, tool_lists, prompt)
-                agent_executor = AgentExecutor(agent=agent, tools=tool_lists, verbose=True)
+                agent_executor = AgentExecutor(agent=agent, tools=tool_lists, max_iterations=30, verbose=True)
 
                 input_data = {
                     "input": user_message,
@@ -92,5 +96,6 @@ Thought:{agent_scratchpad}
 
                 return result.content
         except Exception as e:
-            logger.error(f"聊天出错: {e}")
+            # log traceback
+            logger.exception(e)
             return "服务端异常"
